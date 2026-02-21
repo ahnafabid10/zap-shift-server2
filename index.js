@@ -2,7 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const app = express()
 require('dotenv').config()
-const {  MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 3000
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
 const crypto = require("crypto");
@@ -106,19 +106,19 @@ async function run() {
         line_items: [
           {
             // Provide the exact Price ID (for example, price_1234) of the product you want to sell
-            price_data:{
+            price_data: {
               currency: 'USD',
               unit_amount: amount,
-              product_data:{
+              product_data: {
                 name: paymentInfo.parcelName,
               }
-            } ,
+            },
             quantity: 1,
           },
         ],
         mode: 'payment',
-        customer_email:paymentInfo.senderEmail,
-        metadata:{
+        customer_email: paymentInfo.senderEmail,
+        metadata: {
           parcelId: paymentInfo.parcelId,
           parcelName: paymentInfo.parcelName
         },
@@ -126,20 +126,20 @@ async function run() {
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
       });
       console.log(session)
-      res.send({ url : session.url });
+      res.send({ url: session.url });
     });
 
-    app.patch('/payment-success',async(req,res)=>{
+    app.patch('/payment-success', async (req, res) => {
       const sessionId = req.query.session_id;
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
       console.log('session retrieve', session)
       const transactionId = session.payment_intent
-      const query = {transactionId: transactionId} 
+      const query = { transactionId: transactionId }
 
       const paymentExist = await paymentCollection.findOne(query)
 
-      if(paymentExist){
+      if (paymentExist) {
         return res.send({
           massage: 'already exists',
           transactionId,
@@ -150,51 +150,54 @@ async function run() {
 
       const trackingId = generateTrackingId()
 
-      if(session.payment_status === 'paid'){
+      if (session.payment_status === 'paid') {
         const id = session.metadata.parcelId
-        const query = {_id: new ObjectId(id)}
-        const update = { 
-          $set: { 
+        const query = { _id: new ObjectId(id) }
+        const update = {
+          $set: {
             paymentStatus: 'paid',
             trackingId: trackingId
-          }};
+          }
+        };
 
-          const result = await parcelsCollection.updateOne(query, update);
+        const result = await parcelsCollection.updateOne(query, update);
 
-          const payment = {
-            amount: session.amount_total/100,
-            currency:  session.currency,
-            customer_email: session.customer_email,
-            parcelId: session.metadata.parcelId,
-            parcelName: session.metadata.parcelName,
+        const payment = {
+          amount: session.amount_total / 100,
+          currency: session.currency,         
+          customer_email: session.customer_email,
+          parcelId: session.metadata.parcelId,
+          parcelName: session.metadata.parcelName,
+          transactionId: session.payment_intent,
+          paymentStatus: session.payment_status,
+          paidAt: new Date(),
+          trackingId: trackingId
+        }
+
+        if (session.payment_status === "paid") {
+          const resultPayment = await paymentCollection.insertOne(payment)
+          res.send({
+            success: true,
+            modifyParcel: result,
+            trackingId: trackingId,
             transactionId: session.payment_intent,
-            paymentStatus: session.payment_status,
-            paidAt: new Date(),
-            trackingId: trackingId
-          }
+            paymentInfo: resultPayment
+          })
+        }
 
-          if(session.payment_status === "paid"){
-            const resultPayment = await paymentCollection.insertOne(payment)
-            res.send({
-              success: true, 
-              modifyParcel: result, 
-              trackingId: trackingId,
-              transactionId: session.payment_intent,
-              paymentInfo: resultPayment})
-          }
 
-        
       }
 
-      
+
     })
 
     //Payment related APIs
-    app.get('/payments', async(req,res)=>{
+    app.get('/payments', async (req, res) => {
       const email = req.query.email
-      const query={}
-      if(email){
+      const query = {}
+      if (email) {
         query.customer_email =email
+        // query.customerEmail = email
       }
       const cursor = paymentCollection.find(query)
       const result = await cursor.toArray();
