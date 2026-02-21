@@ -2,11 +2,27 @@ const express = require('express')
 const cors = require('cors')
 const app = express()
 require('dotenv').config()
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const {  MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 3000
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
-
 const crypto = require("crypto");
+
+//MongoDB LOcally  Connect
+
+// const { MongoClient } = require('mongodb')
+// const crypto = require("crypto");
+// const url = `mongodb://127.0.0.1:27017`
+// const client = new MongoClient(url)
+
+// const connectionDB = async()=>{
+//   try{
+//     await client.connect()
+//     console.log('DB is ruunning')
+//   }catch(e){
+//     console.log('error')
+//   }
+// }
+// connectionDB()
 
 function generateTrackingId(prefix = "PK") {
   const randomPart = crypto
@@ -22,7 +38,7 @@ function generateTrackingId(prefix = "PK") {
 app.use(express.json())
 app.use(cors())
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h1evre0.mongodb.net/?appName=Cluster0`;
+const uri = `mongodb://127.0.0.1:27017`
 
 app.get('/', (req, res) => {
   res.send('Zap is shifting Shifting')
@@ -115,10 +131,9 @@ async function run() {
 
     app.patch('/payment-success',async(req,res)=>{
       const sessionId = req.query.session_id;
-      
       const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-      // console.log('session retrieve', session)
+      console.log('session retrieve', session)
       const transactionId = session.payment_intent
       const query = {transactionId: transactionId} 
 
@@ -179,7 +194,7 @@ async function run() {
       const email = req.query.email
       const query={}
       if(email){
-        query.customerEmail =email
+        query.customer_email =email
       }
       const cursor = paymentCollection.find(query)
       const result = await cursor.toArray();
