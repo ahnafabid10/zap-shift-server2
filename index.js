@@ -7,6 +7,15 @@ const port = process.env.PORT || 3000
 const stripe = require("stripe")(process.env.STRIPE_SECRET);
 const crypto = require("crypto");
 
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./zap-shift-firebase-adminsdk.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+
 //MongoDB LOcally  Connect
 
 // const { MongoClient } = require('mongodb')
@@ -37,6 +46,16 @@ function generateTrackingId(prefix = "PK") {
 //middleWare
 app.use(express.json())
 app.use(cors())
+
+// custom middleware to verify firebase token
+const verifyFBToken = (req, res, next)=>{
+  console.log("headers in the middleware", req.headers.authorization)
+  const token = req.headers.authorization
+  if(!token){
+    return res.status(401).send({massage: "unauthorized access"})
+  }
+  next()
+}
 
 const uri = `mongodb://127.0.0.1:27017`
 
@@ -192,9 +211,12 @@ async function run() {
     })
 
     //Payment related APIs
-    app.get('/payments', async (req, res) => {
+    app.get('/payments',verifyFBToken, async (req, res) => {
       const email = req.query.email
       const query = {}
+
+      console.log("headers",req.headers)
+
       if (email) {
         query.customer_email =email
         // query.customerEmail = email
