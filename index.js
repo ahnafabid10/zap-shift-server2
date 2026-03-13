@@ -90,6 +90,17 @@ async function run() {
     const db = client.db('zap_shift_db')
     const parcelsCollection = db.collection('parcels')
     const paymentCollection = db.collection('payments')
+    const usersCollection = db.collection('users')
+
+    //users related Apis
+    app.post("/users", async (req, res)=>{
+      const user  =res.body
+      user.role = "user";
+      user.createdAt = new Date()
+
+      const result = await usersCollection.insertOne(user)
+      res.send(result)
+    })
 
     //parcel api
     app.get('/parcels', async (req, res) => {
@@ -238,7 +249,7 @@ async function run() {
           return res.status(403).send({massage: "forbidden access"})
         }
       }
-      const cursor = paymentCollection.find(query)
+      const cursor = paymentCollection.find(query).sort({paidAt: -1})
       const result = await cursor.toArray();
       res.send(result)
     })
