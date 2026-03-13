@@ -94,6 +94,13 @@ async function run() {
     const ridersCollection = db.collection('riders')
 
     //users related Apis
+    app.get("/users", verifyFBToken, async (req, res)=>{
+      const cursor = usersCollection.find()
+      const result = await cursor.toArray()
+      res.send(result)
+
+    })
+
     app.post("/users", async (req, res)=>{
       const user  =req.body
       user.role = "user";
@@ -292,6 +299,18 @@ async function run() {
       }
 
       const result = await ridersCollection.updateOne(query, updatedDoc)
+
+      if(status === 'approved'){
+        const email = req.body.email;
+        const userQuery = {email}
+        const updateUser ={
+          $set:{
+            role: 'rider',
+          }
+        }
+        const userResult = await usersCollection.updateOne(userQuery, updateUser)
+      }
+
       res.send(result)
 
     })
