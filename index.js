@@ -91,12 +91,19 @@ async function run() {
     const parcelsCollection = db.collection('parcels')
     const paymentCollection = db.collection('payments')
     const usersCollection = db.collection('users')
+    const ridersCollection = db.collection('riders')
 
     //users related Apis
     app.post("/users", async (req, res)=>{
-      const user  =res.body
+      const user  =req.body
       user.role = "user";
       user.createdAt = new Date()
+      const email = user.email
+      const userExists = await usersCollection.findOne({email})
+
+      if(userExists){
+        return res.send({massage: 'user exists'})
+      }
 
       const result = await usersCollection.insertOne(user)
       res.send(result)
@@ -253,6 +260,27 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result)
     })
+
+    // riders related Apis
+    app.get('/riders', async(req, res)=>{
+      const query = {}
+      if(res.query.status){
+        query.status = req.query.status
+      }
+      const cursor = ridersCollection.find(query)
+      const result = await cursor.toArray()
+      res.send(result);
+    })
+
+    app.post('/riders', async(req, res)=>{
+      const rider = req.body;
+      rider.status = 'pending';
+      rider.createdAt = new Date();
+
+      const result = await ridersCollection.insertOne(rider)
+      res.send(result)
+    })
+
 
 
 
