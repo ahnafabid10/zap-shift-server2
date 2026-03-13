@@ -264,7 +264,7 @@ async function run() {
     // riders related Apis
     app.get('/riders', async(req, res)=>{
       const query = {}
-      if(res.query.status){
+      if(req.query.status){
         query.status = req.query.status
       }
       const cursor = ridersCollection.find(query)
@@ -279,6 +279,21 @@ async function run() {
 
       const result = await ridersCollection.insertOne(rider)
       res.send(result)
+    })
+
+    app.patch('/riders/:id',verifyFBToken, async(req,res)=>{
+      const status = req.body.status;
+      const id = req.params.id
+      const query = { _id: new ObjectId(id)}
+      const updatedDoc = {
+        $set: {
+          status: status
+        }
+      }
+
+      const result = await ridersCollection.updateOne(query, updatedDoc)
+      res.send(result)
+
     })
 
 
