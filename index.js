@@ -48,13 +48,25 @@ app.use(express.json())
 app.use(cors())
 
 // custom middleware to verify firebase token
-const verifyFBToken = (req, res, next)=>{
-  console.log("headers in the middleware", req.headers.authorization)
+const verifyFBToken = async (req, res, next)=>{
+  // console.log("headers in the middleware", req.headers.authorization)
   const token = req.headers.authorization
   if(!token){
     return res.status(401).send({massage: "unauthorized access"})
   }
-  next()
+
+  try{
+    const idToken = token.split(" ")[1]
+    const decoded = await admin.auth().verifyIdToken(idToken)
+    console.log("decoded in the token",decoded)
+    req.decoded_email = decoded.email
+    next()
+  }
+  catch(err){
+    return res.status(401).send({massage: "unauthorized access"})
+  }
+
+  
 }
 
 const uri = `mongodb://127.0.0.1:27017`
@@ -220,6 +232,11 @@ async function run() {
       if (email) {
         query.customer_email =email
         // query.customerEmail = email
+
+        // check email address
+        if(email!== req.decoded_email){
+          return res.status(403).send({massage: "forbidden access"})
+        }
       }
       const cursor = paymentCollection.find(query)
       const result = await cursor.toArray();
