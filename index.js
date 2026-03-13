@@ -292,6 +292,18 @@ async function run() {
       }
 
       const result = await ridersCollection.updateOne(query, updatedDoc)
+
+      if(status === 'approved'){
+        const email = req.body.email;
+        const userQuery = {email}
+        const updateUser ={
+          $set:{
+            role: 'rider',
+          }
+        }
+        const userResult = await usersCollection.updateOne(userQuery, updateUser)
+      }
+
       res.send(result)
 
     })
