@@ -108,7 +108,17 @@ async function run() {
 
     //users related Apis
     app.get("/users", verifyFBToken, async (req, res)=>{
-      const cursor = usersCollection.find()
+      const searchText = req.query.searchText
+      const query = {}
+      if(searchText){
+        // query.displayName = {$regex: searchText, $options: i}
+        query.$or = [
+          {displayName: {$regex: searchText, $options: 'i'}},
+          {email: {$regex: searchText, $options: 'i'}}
+        ]
+      }
+
+      const cursor = usersCollection.find(query).sort({createdAt: -1}).limit(5)
       const result = await cursor.toArray()
       res.send(result)
 
@@ -325,7 +335,7 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/riders/:idJ',verifyFBToken,verifyAdmin, async(req,res)=>{
+    app.patch('/riders/:id',verifyFBToken,verifyAdmin, async(req,res)=>{
       const status = req.body.status;
       const id = req.params.id
       const query = { _id: new ObjectId(id)}
