@@ -192,6 +192,9 @@ async function run() {
       if(deliveryStatus){
         query.deliveryStatus = {$in: [`driver-assigned`, `rider_arriving`]}
       }
+      if(deliveryStatus){
+        query.deliveryStatus = {$nin: [`parcel_delivered`]}
+      }
 
       const cursor = parcelsCollection.find(query)
       const result = await cursor.toArray()
