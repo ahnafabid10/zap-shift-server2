@@ -92,6 +92,7 @@ async function run() {
     const paymentCollection = db.collection('payments')
     const usersCollection = db.collection('users')
     const ridersCollection = db.collection('riders')
+    const trackingCollection = db.collection('trackings')
 
     //middle more with database access
     const verifyAdmin = async(req,res, next)=>{
@@ -104,6 +105,17 @@ async function run() {
       }
 
       next()
+    }
+
+    const logTracking = async (trackingId, status)=>{
+      const log = {
+        trackingId, 
+        status,
+        details: status.split('-').join(" "),
+        createdAt: new Date()
+      }
+      const result =await trackingCollection.insertOne(log)
+      return result;
     }
 
     //users related Apis
@@ -189,11 +201,14 @@ async function run() {
       if(riderEmail){
         query.riderEmail = riderEmail
       }
-      if(deliveryStatus){
-        query.deliveryStatus = {$in: [`driver-assigned`, `rider_arriving`]}
-      }
-      if(deliveryStatus){
+      // if(deliveryStatus ){
+      //   query.deliveryStatus = {$in: [`driver-assigned`, `rider_arriving`]}
+      // }
+      if(deliveryStatus !== 'parcel_delivered'){
         query.deliveryStatus = {$nin: [`parcel_delivered`]}
+      }
+      else{
+        query.deliveryStatus = deliveryStatus
       }
 
       const cursor = parcelsCollection.find(query)
@@ -217,7 +232,7 @@ async function run() {
     })
 
     app.patch('/parcels/:id', async(req, res)=>{
-      const {riderId, riderName, riderEmail} = req.body
+      const {riderId, riderName, riderEmail, trackingId} = req.body
       const id = req.params.id
       const query = {_id: new ObjectId(id)}
 
@@ -241,19 +256,37 @@ async function run() {
 
       const riderResult = await ridersCollection.updateOne(riderQuery, riderUpdatedDoc)
 
+      //log Tracking
+      logTracking(trackingId, 'driver-assigned')
+
       res.send(riderResult)
 
     })
 
     app.patch('/parcels/:id/status', async(req,res)=>{
-      const {deliveryStatus} = req.body
+      const {deliveryStatus, riderId, trackingId} = req.body
       const query = {_id: new ObjectId(req.params.id)}
       const updatedDoc = {
         $set:{
           deliveryStatus: deliveryStatus
         }
       }
+
+      if(deliveryStatus === 'parcel_delivered'){
+        const riderQuery = {_id: new ObjectId(riderId)}
+        const riderUpdatedDoc = {
+          $set:{
+            workStatus: 'available'
+          }
+        }
+        const riderResult = await ridersCollection.updateOne(riderQuery, riderUpdatedDoc)
+      }
+
       const result = await parcelsCollection.updateOne(query, updatedDoc)
+
+      //log tracking
+      logTracking(trackingId, deliveryStatus)
+
       res.send(result)
     })
 
@@ -344,6 +377,9 @@ async function run() {
 
         if (session.payment_status === "paid") {
           const resultPayment = await paymentCollection.insertOne(payment)
+
+          logTracking(trackingId, 'pending-pickup')
+
           res.send({
             success: true,
             modifyParcel: result,
@@ -352,8 +388,6 @@ async function run() {
             paymentInfo: resultPayment
           })
         }
-
-
       }
 
 
