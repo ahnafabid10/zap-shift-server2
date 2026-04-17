@@ -111,7 +111,7 @@ async function run() {
       const log = {
         trackingId, 
         status,
-        details: status.split('-').join(" "),
+        details: status.split('_').join(" "),
         createdAt: new Date()
       }
       const result =await trackingCollection.insertOne(log)
@@ -225,8 +225,13 @@ async function run() {
 
     app.post('/parcels', async (req, res) => {
       const parcel = req.body;
+      const trackingId = generateTrackingId()
       //parcel created time
       parcel.createdAt = new Date()
+      parcel.trackingId =trackingId;
+
+      logTracking(trackingId, 'parcel_created')
+
       const result = await parcelsCollection.insertOne(parcel)
       res.send(result)
     })
@@ -320,7 +325,8 @@ async function run() {
         customer_email: paymentInfo.senderEmail,
         metadata: {
           parcelId: paymentInfo.parcelId,
-          parcelName: paymentInfo.parcelName
+          parcelName: paymentInfo.parcelName,
+          trackingId: paymentInfo.trackingId
         },
         success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
@@ -347,8 +353,8 @@ async function run() {
         })
       }
 
-
-      const trackingId = generateTrackingId()
+      // use the previous tracking id created during the parcel created which was saved to the session meta data
+      const trackingId = session.metadata.trackingId
 
       if (session.payment_status === 'paid') {
         const id = session.metadata.parcelId
@@ -356,8 +362,7 @@ async function run() {
         const update = {
           $set: {
             paymentStatus: 'paid',
-            deliveryStatus: 'pending-pickup',
-            trackingId: trackingId
+            deliveryStatus: 'parcel_paid',
           }
         };
 
