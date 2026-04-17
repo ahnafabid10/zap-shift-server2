@@ -470,6 +470,14 @@ async function run() {
 
     })
 
+    // tracking related Apis
+    app.get(`/trackings/:trackingId/logs`, async(req,res)=>{
+      const trackingId = req.params.trackingId
+      const query = { trackingId}
+      const result = await trackingCollection.find(query).toArray()
+      res.send(result)
+    })
+
 
 
 
